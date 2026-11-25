@@ -1,0 +1,85 @@
+<%- include('../partials/header', { title: 'Giao dịch' }) %>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 m-0">Giao dịch</h1>
+  <a class="btn btn-primary" href="/transactions/new">+ Thêm giao dịch</a>
+</div>
+
+<%# Bộ lọc: dùng GET để bộ lọc nằm trên URL, có thể lưu lại hoặc chia sẻ %>
+<form method="GET" action="/transactions" class="card card-body shadow-sm mb-3">
+  <div class="row g-2 align-items-end">
+    <div class="col-sm-3">
+      <label class="form-label small">Tháng</label>
+      <input class="form-control" type="month" name="month" value="<%= filters.month %>">
+    </div>
+    <div class="col-sm-3">
+      <label class="form-label small">Loại</label>
+      <select class="form-select" name="type">
+        <option value="">Tất cả</option>
+        <option value="income" <%= filters.type === 'income' ? 'selected' : '' %>>Thu nhập</option>
+        <option value="expense" <%= filters.type === 'expense' ? 'selected' : '' %>>Chi tiêu</option>
+      </select>
+    </div>
+    <div class="col-sm-4">
+      <label class="form-label small">Danh mục</label>
+      <select class="form-select" name="category_id">
+        <option value="">Tất cả</option>
+        <% categories.forEach(c => { %>
+          <option value="<%= c.id %>" <%= filters.categoryId === c.id ? 'selected' : '' %>>
+            <%= c.type === 'income' ? '↑' : '↓' %> <%= c.name %>
+          </option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="col-sm-2 d-flex gap-1">
+      <button class="btn btn-outline-primary w-100">Lọc</button>
+      <a class="btn btn-outline-secondary" href="/transactions" title="Bỏ lọc">✕</a>
+    </div>
+  </div>
+</form>
+
+<%# Tổng của kết quả đang lọc %>
+<div class="row g-2 mb-3 text-center">
+  <div class="col-4"><div class="card card-body py-2">
+    <div class="small text-muted">Thu</div><div class="fw-bold text-success"><%= formatMoney(totalIncome) %></div>
+  </div></div>
+  <div class="col-4"><div class="card card-body py-2">
+    <div class="small text-muted">Chi</div><div class="fw-bold text-danger"><%= formatMoney(totalExpense) %></div>
+  </div></div>
+  <div class="col-4"><div class="card card-body py-2">
+    <div class="small text-muted">Chênh lệch</div>
+    <div class="fw-bold <%= totalIncome - totalExpense >= 0 ? 'text-primary' : 'text-danger' %>"><%= formatMoney(totalIncome - totalExpense) %></div>
+  </div></div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr><th>Ngày</th><th>Danh mục</th><th>Ghi chú</th><th class="text-end">Số tiền</th><th></th></tr>
+      </thead>
+      <tbody>
+        <% if (transactions.length === 0) { %>
+          <tr><td colspan="5" class="text-center text-muted py-4">Chưa có giao dịch nào trong tháng này.</td></tr>
+        <% } %>
+        <% transactions.forEach(t => { %>
+        <tr>
+          <td class="text-nowrap"><%= formatDate(t.date) %></td>
+          <td><%= t.category_name %></td>
+          <td class="text-muted small"><%= t.note %></td>
+          <td class="text-end text-nowrap fw-semibold <%= t.type === 'income' ? 'text-success' : 'text-danger' %>">
+            <%= t.type === 'income' ? '+' : '−' %><%= formatMoney(t.amount) %>
+          </td>
+          <td class="text-end text-nowrap">
+            <a class="btn btn-sm btn-outline-secondary" href="/transactions/<%= t.id %>/edit">Sửa</a>
+            <form method="POST" action="/transactions/<%= t.id %>/delete" class="d-inline"
+                  onsubmit="return confirm('Xoá giao dịch này?')">
+              <button class="btn btn-sm btn-outline-danger">Xoá</button>
+            </form>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('../partials/footer') %>

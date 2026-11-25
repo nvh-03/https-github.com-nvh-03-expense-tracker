@@ -1,0 +1,56 @@
+<%- include('partials/header', { title: 'Danh mục' }) %>
+<h1 class="h3 mb-3">Danh mục thu chi</h1>
+
+<%# Form thêm danh mục mới %>
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <form method="POST" action="/categories" class="row g-2 align-items-end">
+      <div class="col-sm-5">
+        <label class="form-label">Tên danh mục</label>
+        <input class="form-control" name="name" maxlength="50" placeholder="VD: Cà phê" required>
+      </div>
+      <div class="col-sm-4">
+        <label class="form-label">Loại</label>
+        <select class="form-select" name="type">
+          <option value="expense">Chi tiêu</option>
+          <option value="income">Thu nhập</option>
+        </select>
+      </div>
+      <div class="col-sm-3">
+        <button class="btn btn-primary w-100">+ Thêm</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="row g-3">
+  <% [['Thu nhập', 'success', income], ['Chi tiêu', 'danger', expense]].forEach(([label, color, list]) => { %>
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header fw-semibold text-<%= color %>"><%= label %> (<%= list.length %>)</div>
+      <ul class="list-group list-group-flush">
+        <% if (list.length === 0) { %>
+          <li class="list-group-item text-muted">Chưa có danh mục.</li>
+        <% } %>
+        <% list.forEach(c => { %>
+        <li class="list-group-item">
+          <div class="d-flex gap-2 align-items-center">
+            <%# Form đổi tên: sửa trực tiếp trong ô rồi bấm Lưu %>
+            <form method="POST" action="/categories/<%= c.id %>/edit" class="d-flex gap-2 flex-grow-1 m-0">
+              <input class="form-control form-control-sm" name="name" value="<%= c.name %>" maxlength="50" required>
+              <button class="btn btn-sm btn-outline-secondary">Lưu</button>
+            </form>
+            <span class="badge text-bg-light" title="Số giao dịch"><%= c.tx_count %> GD</span>
+            <form method="POST" action="/categories/<%= c.id %>/delete" class="m-0"
+                  data-msg="Xoá danh mục &quot;<%= c.name %>&quot;?" onsubmit="return confirm(this.dataset.msg)">
+              <button class="btn btn-sm btn-outline-danger" <%= c.tx_count > 0 ? 'disabled' : '' %>>Xoá</button>
+            </form>
+          </div>
+        </li>
+        <% }) %>
+      </ul>
+    </div>
+  </div>
+  <% }) %>
+</div>
+<%- include('partials/footer') %>

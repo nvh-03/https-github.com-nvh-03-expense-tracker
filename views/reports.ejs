@@ -1,0 +1,139 @@
+<%- include('partials/header', { title: 'Báo cáo' }) %>
+<%
+  const totalExpense = byCategory.reduce((s, c) => s + c.total, 0);
+  const totalIncome = incomeByCategory.reduce((s, c) => s + c.total, 0);
+  // Bảng màu cho biểu đồ tròn
+  const COLORS = ['#0d6efd','#dc3545','#fd7e14','#ffc107','#20c997','#6f42c1','#d63384','#0dcaf0','#198754','#6c757d'];
+  const label = (m) => m.split('-').reverse().join('/');
+%>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+  <h1 class="h3 m-0">Báo cáo tháng <%= label(month) %></h1>
+  <div class="d-flex gap-2">
+    <form method="GET" action="/reports" class="m-0">
+      <input class="form-control" type="month" name="month" value="<%= month %>" onchange="this.form.submit()">
+    </form>
+    <a class="btn btn-outline-success text-nowrap" href="/reports/export.csv?month=<%= month %>">⬇ Xuất CSV</a>
+  </div>
+</div>
+
+<%# 4 ô tóm tắt %>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="card shadow-sm"><div class="card-body">
+    <div class="text-muted small">Tổng thu</div><div class="h5 text-success m-0"><%= formatMoney(current.income) %></div>
+  </div></div></div>
+  <div class="col-6 col-md-3"><div class="card shadow-sm"><div class="card-body">
+    <div class="text-muted small">Tổng chi</div><div class="h5 text-danger m-0"><%= formatMoney(current.expense) %></div>
+  </div></div></div>
+  <div class="col-6 col-md-3"><div class="card shadow-sm"><div class="card-body">
+    <div class="text-muted small">Số dư</div>
+    <div class="h5 m-0 <%= current.income - current.expense >= 0 ? 'text-primary' : 'text-danger' %>"><%= formatMoney(current.income - current.expense) %></div>
+  </div></div></div>
+  <div class="col-6 col-md-3"><div class="card shadow-sm"><div class="card-body">
+    <div class="text-muted small">Tỷ lệ tiết kiệm</div>
+    <div class="h5 m-0"><%= savingRate === null ? '—' : savingRate + '%' %></div>
+  </div></div></div>
+</div>
+
+<div class="row g-3 mb-4">
+  <%# Biểu đồ tròn: chi theo danh mục %>
+  <div class="col-lg-5">
+    <div class="card shadow-sm h-100">
+      <div class="card-header fw-semibold">Chi tiêu theo danh mục</div>
+      <div class="card-body">
+        <% if (byCategory.length === 0) { %>
+          <p class="text-muted text-center my-5">Chưa có khoản chi nào trong tháng này.</p>
+        <% } else { %>
+          <div style="height: 260px"><canvas id="pieChart"></canvas></div>
+          <table class="table table-sm mt-3 mb-0">
+            <% byCategory.forEach((c, i) => { %>
+            <tr>
+              <td><span class="legend-dot" style="background: <%= COLORS[i % COLORS.length] %>"></span><%= c.name %></td>
+              <td class="text-end"><%= formatMoney(c.total) %></td>
+              <td class="text-end text-muted" style="width: 60px"><%= Math.round(c.total / totalExpense * 100) %>%</td>
+            </tr>
+            <% }) %>
+          </table>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <%# Biểu đồ cột: thu/chi 6 tháng %>
+  <div class="col-lg-7">
+    <div class="card shadow-sm h-100">
+      <div class="card-header fw-semibold">Thu và chi 6 tháng gần nhất</div>
+      <div class="card-body">
+        <div style="height: 300px"><canvas id="barChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<% if (incomeByCategory.length) { %>
+<div class="card shadow-sm mb-4">
+  <div class="card-header fw-semibold">Nguồn thu nhập</div>
+  <table class="table table-sm mb-0">
+    <% incomeByCategory.forEach(c => { %>
+      <tr>
+        <td class="ps-3"><%= c.name %></td>
+        <td class="text-end text-success"><%= formatMoney(c.total) %></td>
+        <td class="text-end text-muted pe-3" style="width: 60px"><%= Math.round(c.total / totalIncome * 100) %>%</td>
+      </tr>
+    <% }) %>
+  </table>
+</div>
+<% } %>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script>
+  // Dữ liệu từ máy chủ được "nhúng" vào trang dưới dạng JSON.
+  // safeJson thay dấu "<" bằng \u003c, để tên danh mục có chứa thẻ đóng script
+  // không thể "thoát" khỏi khối script này và chạy mã độc (chống XSS).
+  const pieData = <%- safeJson({ labels: byCategory.map(c => c.name), values: byCategory.map(c => c.total) }) %>;
+  const barData = <%- safeJson({
+    labels: history.map(h => label(h.month)),
+    income: history.map(h => h.income),
+    expense: history.map(h => h.expense),
+  }) %>;
+  const COLORS = <%- safeJson(COLORS) %>;
+  const money = (v) => new Intl.NumberFormat('vi-VN').format(v) + ' ₫';
+
+  if (document.getElementById('pieChart')) {
+    new Chart(document.getElementById('pieChart'), {
+      type: 'doughnut',
+      data: {
+        labels: pieData.labels,
+        datasets: [{ data: pieData.values, backgroundColor: COLORS }],
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${money(ctx.raw)}` } },
+        },
+      },
+    });
+  }
+
+  new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: {
+      labels: barData.labels,
+      datasets: [
+        { label: 'Thu', data: barData.income, backgroundColor: '#198754' },
+        { label: 'Chi', data: barData.expense, backgroundColor: '#dc3545' },
+      ],
+    },
+    options: {
+      maintainAspectRatio: false,
+      scales: {
+        // Trục Y hiển thị gọn: 1.500.000 -> "1,5 tr"
+        y: { beginAtZero: true, ticks: { callback: (v) => (v >= 1e6 ? (v / 1e6).toLocaleString('vi-VN') + ' tr' : v.toLocaleString('vi-VN')) } },
+      },
+      plugins: {
+        tooltip: { callbacks: { label: (ctx) => ` ${ctx.dataset.label}: ${money(ctx.raw)}` } },
+      },
+    },
+  });
+</script>
+<%- include('partials/footer') %>

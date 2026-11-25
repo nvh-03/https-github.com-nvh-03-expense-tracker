@@ -1,0 +1,70 @@
+<%- include('partials/header', { title: 'Ngân sách' }) %>
+<%
+  // Màu thanh tiến độ theo trạng thái
+  const COLORS = { ok: 'success', warning: 'warning', over: 'danger' };
+  const totalPercent = totalBudget ? Math.round(totalSpent / totalBudget * 100) : 0;
+%>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+  <h1 class="h3 m-0">Ngân sách tháng <%= month.split('-').reverse().join('/') %></h1>
+  <div class="d-flex gap-2">
+    <form method="GET" action="/budgets" class="d-flex gap-2 m-0">
+      <input class="form-control" type="month" name="month" value="<%= month %>" onchange="this.form.submit()">
+    </form>
+    <form method="POST" action="/budgets/copy" class="m-0">
+      <input type="hidden" name="month" value="<%= month %>">
+      <button class="btn btn-outline-primary text-nowrap" title="Chép hạn mức từ tháng trước sang tháng này">Chép từ tháng trước</button>
+    </form>
+  </div>
+</div>
+
+<% if (totalBudget) { %>
+<div class="card shadow-sm mb-3"><div class="card-body">
+  <div class="d-flex justify-content-between mb-1">
+    <span>Tổng đã chi <strong><%= formatMoney(totalSpent) %></strong> / <%= formatMoney(totalBudget) %></span>
+    <span class="fw-semibold"><%= totalPercent %>%</span>
+  </div>
+  <div class="progress" style="height: 10px">
+    <div class="progress-bar bg-<%= totalPercent > 100 ? 'danger' : totalPercent >= 80 ? 'warning' : 'success' %>"
+         style="width: <%= Math.min(totalPercent, 100) %>%"></div>
+  </div>
+</div></div>
+<% } %>
+
+<div class="card shadow-sm">
+  <ul class="list-group list-group-flush">
+    <% rows.forEach(r => { %>
+    <li class="list-group-item py-3">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-5">
+          <div class="d-flex justify-content-between">
+            <span class="fw-semibold"><%= r.name %></span>
+            <% if (r.status === 'over') { %><span class="badge text-bg-danger">Vượt <%= formatMoney(-r.remaining) %></span>
+            <% } else if (r.status === 'warning') { %><span class="badge text-bg-warning">Sắp hết</span><% } %>
+          </div>
+          <% if (r.budget) { %>
+            <div class="progress my-1" style="height: 8px">
+              <div class="progress-bar bg-<%= COLORS[r.status] %>" style="width: <%= Math.min(r.percent, 100) %>%"></div>
+            </div>
+            <div class="small text-muted">
+              Đã chi <%= formatMoney(r.spent) %> / <%= formatMoney(r.budget) %> (<%= r.percent %>%)
+              <% if (r.remaining >= 0) { %> · còn <%= formatMoney(r.remaining) %><% } %>
+            </div>
+          <% } else { %>
+            <div class="small text-muted">Chưa đặt ngân sách · đã chi <%= formatMoney(r.spent) %></div>
+          <% } %>
+        </div>
+        <div class="col-md-7">
+          <form method="POST" action="/budgets" class="d-flex gap-2 m-0">
+            <input type="hidden" name="month" value="<%= month %>">
+            <input type="hidden" name="category_id" value="<%= r.category_id %>">
+            <input class="form-control" name="amount" inputmode="numeric"
+                   placeholder="Hạn mức (₫), để trống = bỏ" value="<%= r.budget || '' %>">
+            <button class="btn btn-outline-secondary text-nowrap">Lưu</button>
+          </form>
+        </div>
+      </div>
+    </li>
+    <% }) %>
+  </ul>
+</div>
+<%- include('partials/footer') %>
